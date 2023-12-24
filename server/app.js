@@ -3,8 +3,21 @@ const express = require("express");
 const path = require("path");
 const cookieParser = require("cookie-parser");
 const logger = require("morgan");
+const mongoose = require("mongoose");
+const passport = require("passport");
+const User = require("./models/User.js");
+const JwtStrategy = require("passport-jwt").Strategy;
+const ExtractJwt = require("passport-jwt").ExtractJwt;
 
 const indexRouter = require("./routes/index");
+const apiRouter = require("./routes/api.js");
+
+require("dotenv").config();
+
+connect().catch((err) => console.log(err));
+async function connect() {
+  await mongoose.connect(process.env.URI);
+}
 
 const app = express();
 
@@ -18,7 +31,27 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, "public")));
 
+const opts = {};
+opts.jwtFromRequest = ExtractJwt.fromAuthHeaderAsBearerToken();
+opts.secretOrKey = process.env.secret;
+passport.use(
+  new JwtStrategy(opts, async (payload, done) => {
+    try {
+      const user = User.findOne({ username: payload.username });
+      if (user) {
+        done(null, user);
+      } else {
+        done(null, false);
+      }
+    } catch (err) {
+      console.log(err);
+      done(err, false);
+    }
+  })
+);
+
 app.use("/", indexRouter);
+app.use("/api", apiRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {
