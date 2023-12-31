@@ -10,7 +10,7 @@ const JwtStrategy = require("passport-jwt").Strategy;
 const ExtractJwt = require("passport-jwt").ExtractJwt;
 
 const indexRouter = require("./routes/index");
-const apiRouter = require("./routes/api.js");
+const socialRouter = require("./routes/social.js");
 
 require("dotenv").config();
 
@@ -37,7 +37,7 @@ opts.secretOrKey = process.env.secret;
 passport.use(
   new JwtStrategy(opts, async (payload, done) => {
     try {
-      const user = User.findOne({ username: payload.username });
+      const user = await User.findOne({ username: payload.username });
       if (user) {
         done(null, user);
       } else {
@@ -51,7 +51,7 @@ passport.use(
 );
 
 app.use("/", indexRouter);
-app.use("/api", apiRouter);
+app.use("/api/social", socialRouter);
 
 // catch 404 and forward to error handler
 app.use(function (req, res, next) {

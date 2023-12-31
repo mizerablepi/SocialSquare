@@ -1,8 +1,10 @@
 const asyncHandler = require("express-async-handler");
 const { validationResult, body } = require("express-validator");
 const jwt = require("jsonwebtoken");
+const passport = require("passport");
 const bcrypt = require("bcryptjs");
 const User = require("../models/User.js");
+const Post = require("../models/Post.js");
 
 exports.loginPost = [
   body("username", "Invalid username")
@@ -61,5 +63,69 @@ exports.signupPost = [
     }
     await user.save();
     res.json({ result: true, message: "user created successfully" });
+  }),
+];
+
+exports.getFeed = [
+  passport.authenticate("jwt", { session: false }),
+  asyncHandler(async (req, res) => {
+    const feed = await Post.find({
+      author: { $in: req.user.following },
+    }).exec();
+    res.json({ result: true, feed, message: "success" });
+  }),
+];
+
+exports.createPost = [
+  body("content", "invalid content").trim().isLength({ max: 500 }).escape(),
+  passport.authenticate("jwt", { session: false }),
+  asyncHandler(async (req, res) => {
+    const post = new Post({
+      author: req.user.username,
+      content: req.body.content,
+    });
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      res.send(errors);
+    }
+    await post.save();
+  }),
+];
+
+exports.likePost = [
+  passport.authenticate("jwt", { session: false }),
+  asyncHandler(async (req, res) => {
+    const post = await Post.findById(req.body.postId).exec();
+    if (!post) {
+      res.send("post not found");
+    }
+    post.likes.push(req.user);
+    req.user.likes.push(post);
+    await post.save();
+    await req.user.save();
+  }),
+];
+
+exports.followUser = [
+  passport.authenticate("jwt", { session: false }),
+  asyncHandler(async (req, res) => {
+    const user = await Post.findOne({ username: req.body.username }).exec();
+    if (!user) {
+      res.send("user not found");
+    }
+    user.followers.push(req.user);
+    req.user.following.push(user);
+    await user.save();
+    await req.user.save();
+  }),
+];
+
+exports.test = [
+  passport.authenticate("jwt", { session: false }),
+  asyncHandler(async (req, res) => {
+    const test = await new User({ username: "test1", password: "test1" });
+    req.user.followers.push(test);
+    await req.user.save();
+    res.send(req.user);
   }),
 ];
